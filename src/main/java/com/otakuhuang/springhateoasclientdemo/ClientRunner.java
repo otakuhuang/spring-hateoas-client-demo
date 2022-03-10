@@ -1,5 +1,6 @@
 package com.otakuhuang.springhateoasclientdemo;
 
+import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.otakuhuang.springhateoasclientdemo.model.Coffee;
 import com.otakuhuang.springhateoasclientdemo.model.CoffeeOrder;
 import com.otakuhuang.springhateoasclientdemo.model.OrderState;
@@ -10,10 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.hateoas.EntityModel;
-import org.springframework.hateoas.Link;
-import org.springframework.hateoas.PagedModel;
+import org.springframework.hateoas.*;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -41,16 +41,14 @@ public class ClientRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
         Optional<Link> coffeeLink = getLink(ROOT_URI, "coffees");
+        Optional<Link> orderLink = getLink(ROOT_URI, "coffeeOrders");
 
-        if (coffeeLink.isPresent()) {
+        if (coffeeLink.isPresent() && orderLink.isPresent()) {
             readCoffeeMenu(coffeeLink.get());
             EntityModel<Coffee> americano = addCoffee(coffeeLink.get());
 
-            Optional<Link> orderLink = getLink(ROOT_URI, "coffeeOrders");
-            if (orderLink.isPresent()) {
-                addOrder(orderLink.get(), americano);
-                queryOrder(orderLink.get());
-            }
+            addOrder(orderLink.get(), americano);
+            queryOrder(orderLink.get());
         }
     }
 
@@ -108,10 +106,15 @@ public class ClientRunner implements ApplicationRunner {
         EntityModel<CoffeeOrder> order = resp.getBody();
         Optional<Link> items = order.getLink("items");
 
+        log.info(Collections.singletonMap("_links", coffee.getLink("self").get()));
+
         if (items.isPresent()) {
+//            req = RequestEntity.post(
+//                            items.get().getTemplate().expand())
+//                    .body(Collections.singletonMap("_links", coffee.getLink("self").get()));
             req = RequestEntity.post(
-                            items.get().getTemplate().expand())
-                    .body(Collections.singletonMap("_links", coffee.getLink("self")));
+                    items.get().getTemplate().expand())
+                    .body(coffee);
             ResponseEntity<String> itemResp = restTemplate.exchange(req, String.class);
             log.info("Add Order Items Response: {}", itemResp);
         }
